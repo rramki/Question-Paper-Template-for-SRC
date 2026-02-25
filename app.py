@@ -1,21 +1,19 @@
 import streamlit as st
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.platypus import Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A3
+from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 from io import BytesIO
 
 st.set_page_config(layout="wide")
+st.title("University Internal Examination Paper Generator (A5)")
 
-st.title("Internal Examination Question Paper Generator")
-
-# ----------------------------
-# Basic Details
-# ----------------------------
-college_name = st.text_input("College Name")
+# -----------------------------
+# Header Inputs
+# -----------------------------
 department = st.text_input("Department Name")
 exam_no = st.selectbox("Internal Exam Number", ["1", "2", "3"])
 course_code = st.text_input("Course Code")
@@ -23,51 +21,49 @@ course_name = st.text_input("Course Name")
 
 st.markdown("---")
 
-# ----------------------------
-# Section Builder Function
-# ----------------------------
+# -----------------------------
+# Section Builder with Subsections
+# -----------------------------
 def section_builder(section_name):
-    st.subheader(f"{section_name}")
-    total_marks = st.number_input(f"{section_name} Total Marks", min_value=0, step=1)
-    choice_type = st.selectbox(
-        f"{section_name} Choice Type",
-        ["Answer All", "Answer Any"],
-        key=section_name
-    )
+    st.header(section_name)
 
     num_questions = st.number_input(
         f"Number of Questions in {section_name}",
         min_value=0,
         step=1,
-        key=section_name+"num"
+        key=section_name
     )
 
-    questions = []
+    section_data = []
+
     for i in range(int(num_questions)):
-        col1, col2 = st.columns([4,1])
-        q = col1.text_area(f"{section_name} Question {i+1}", key=section_name+str(i))
-        m = col2.number_input("Marks", min_value=0, step=1, key=section_name+"m"+str(i))
-        questions.append((q, m))
+        st.subheader(f"Question {i+1}")
+        has_choice = st.checkbox("This question has choice?", key=section_name+"choice"+str(i))
+        num_sub = st.number_input("Number of Subsections", min_value=1, step=1,
+                                  key=section_name+"sub"+str(i))
 
-    return total_marks, choice_type, questions
+        subs = []
+        for j in range(int(num_sub)):
+            col1, col2 = st.columns([4,1])
+            text = col1.text_area(f"Subsection ({chr(97+j)})", key=section_name+str(i)+str(j))
+            mark = col2.number_input("Marks", min_value=0, step=1,
+                                     key=section_name+"m"+str(i)+str(j))
+            subs.append((text, mark))
 
-# ----------------------------
-# Sections
-# ----------------------------
-st.header("Sections")
+        section_data.append((has_choice, subs))
+
+    return section_data
 
 partA = section_builder("PART-A")
-st.markdown("---")
 partB = section_builder("PART-B")
-st.markdown("---")
 partC = section_builder("PART-C")
 
-# ----------------------------
+# -----------------------------
 # PDF Generator
-# ----------------------------
+# -----------------------------
 def generate_pdf():
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A3)
+    doc = SimpleDocTemplate(buffer, pagesize=A5)
     elements = []
 
     styles = getSampleStyleSheet()
@@ -86,69 +82,79 @@ def generate_pdf():
         fontSize=12
     )
 
-    # Header
-    elements.append(Paragraph(f"<b>{college_name}</b>", bold))
-    elements.append(Spacer(1, 0.2*inch))
-    elements.append(Paragraph(f"<b>Department of {department}</b>", bold))
-    elements.append(Spacer(1, 0.3*inch))
+    # -------------------------
+    # Header Table
+    # -------------------------
+    logo = Image("logo.png", width=1*inch, height=1*inch)
 
-    exam_data = [
-        ["Internal Exam No:", exam_no, "Course Code:", course_code],
-        ["Course Name:", course_name, "Duration:", "90 Minutes"],
-        ["Maximum Marks:", "50", "", ""]
-    ]
+    header_right = f"""
+    <b>Department:</b> {department}<br/>
+    <b>Internal Exam:</b> {exam_no}<br/>
+    <b>Course Code:</b> {course_code}<br/>
+    <b>Course Name:</b> {course_name}<br/>
+    <b>Duration:</b> 90 Minutes<br/>
+    <b>Maximum Marks:</b> 50
+    """
 
-    table = Table(exam_data, colWidths=[2*inch, 3*inch, 2*inch, 2*inch])
-    table.setStyle(TableStyle([
-        ('GRID',(0,0),(-1,-1),0.5,colors.black),
-        ('FONTNAME',(0,0),(-1,-1),'Times-Roman'),
-        ('FONTSIZE',(0,0),(-1,-1),12),
+    header_table = Table([
+        [logo, Paragraph(header_right, normal)]
+    ], colWidths=[1.2*inch, 4.5*inch])
+
+    header_table.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
     ]))
 
-    elements.append(table)
-    elements.append(Spacer(1, 0.5*inch))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.3*inch))
 
-    def add_section(title, data):
-        total, choice, questions = data
-        elements.append(Paragraph(f"<b>{title} (Total Marks: {total})</b>", bold))
+    # -------------------------
+    # Section Writer
+    # -------------------------
+    def write_section(title, data):
+        elements.append(Paragraph(f"<b>{title}</b>", bold))
         elements.append(Spacer(1, 0.2*inch))
 
-        if choice == "Answer All":
-            elements.append(Paragraph("Answer all questions.", normal))
-        else:
-            elements.append(Paragraph("Answer any specified number of questions.", normal))
+        for i, (choice, subs) in enumerate(data):
+            q_text = f"{i+1}."
+            if choice:
+                q_text += " (OR Choice Available)"
+            elements.append(Paragraph(q_text, normal))
+            elements.append(Spacer(1, 0.1*inch))
 
-        elements.append(Spacer(1, 0.2*inch))
+            for j, (text, mark) in enumerate(subs):
+                elements.append(
+                    Paragraph(f"({chr(97+j)}) {text} ({mark} Marks)", normal)
+                )
+                elements.append(Spacer(1, 0.1*inch))
 
-        for i, (q, m) in enumerate(questions):
-            elements.append(Paragraph(f"{i+1}. {q} ({m} Marks)", normal))
             elements.append(Spacer(1, 0.2*inch))
 
-        elements.append(Spacer(1, 0.4*inch))
+    write_section("PART-A", partA)
+    write_section("PART-B", partB)
+    write_section("PART-C", partC)
 
-    add_section("PART-A", partA)
-    add_section("PART-B", partB)
-    add_section("PART-C", partC)
-
+    # -------------------------
+    # Page Number
+    # -------------------------
     def add_page_number(canvas, doc):
         canvas.setFont("Times-Roman", 12)
-        canvas.drawRightString(A3[0]-40, 20, f"Page {doc.page}")
+        canvas.drawRightString(A5[0]-20, 20, f"Page {doc.page}")
 
     doc.build(elements, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
     buffer.seek(0)
     return buffer
 
-# ----------------------------
+# -----------------------------
 # Download Button
-# ----------------------------
+# -----------------------------
 if st.button("Generate Question Paper"):
-    pdf_file = generate_pdf()
+    pdf = generate_pdf()
     filename = f"{course_code}_{course_name}.pdf".replace(" ", "_")
 
     st.download_button(
-        label="Download PDF",
-        data=pdf_file,
+        "Download PDF",
+        pdf,
         file_name=filename,
         mime="application/pdf"
     )

@@ -131,7 +131,7 @@ def generate_pdf():
     pdf = HTML(string=final_html).write_pdf()
 
     return BytesIO(pdf)
-
+    
 def build_section(title, data):
     nonlocal html_content, q_number
 

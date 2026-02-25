@@ -91,40 +91,26 @@ else:
 # -----------------------
 def generate_pdf():
 
-    html_content = f"""
-    <html>
-    <head>
-    <style>
-    @page {{ size: A5; margin: 20mm; }}
-    body {{ font-family: 'Times New Roman'; font-size: 12pt; }}
-    h1 {{ font-size: 16pt; font-weight: bold; }}
-    h2 {{ font-size: 14pt; font-weight: bold; }}
-    .header {{ display: flex; justify-content: space-between; }}
-    .footer {{ text-align: center; margin-top: 30px; font-weight: bold; }}
-    </style>
-
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    </head>
-    <body>
-
-    <h1>{college_name}</h1>
-    <h2>{department}</h2>
-
-    <div class="header">
-        <div>
-            <b>Internal Exam:</b> {exam_no}<br>
-            <b>Subject Code:</b> {course_code}<br>
-            <b>Subject Name:</b> {course_name}
-        </div>
-        <div>
-            <b>Duration:</b> 90 Minutes<br>
-            <b>Maximum Marks:</b> 50
-        </div>
-    </div>
-    <hr>
-    """
-
+    html_content = ""
     q_number = 1
+
+    def build_section(title, data):
+        nonlocal html_content, q_number
+
+        html_content += f"<h3>{title}</h3>"
+
+        for q_html, marks in data:
+            html_content += f"""
+            <p><b>{q_number}.</b> {q_html}
+            <span style="float:right;"><b>({marks} Marks)</b></span></p>
+            """
+            q_number += 1
+
+    build_section("PART-A", partA)
+    build_section("PART-B", partB)
+    build_section("PART-C", partC)
+
+    return html_content
 
 def build_section(title, data):
     nonlocal html_content, q_number

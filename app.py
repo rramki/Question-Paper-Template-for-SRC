@@ -91,14 +91,44 @@ else:
 # -----------------------
 def generate_pdf():
 
+    from weasyprint import HTML
+    from io import BytesIO
+
     q_number = 1
     html_parts = []
 
+    # ---------- HEADER ----------
     html_parts.append(f"""
     <html>
-    <body style="font-family:Times New Roman; font-size:12pt;">
+    <head>
+    <style>
+    @page {{ size: A5; margin: 20mm; }}
+    body {{ font-family: 'Times New Roman'; font-size: 12pt; }}
+    h1 {{ font-size: 16pt; font-weight: bold; text-align:center; }}
+    h2 {{ font-size: 14pt; font-weight: bold; text-align:center; }}
+    h3 {{ font-weight: bold; margin-top:20px; }}
+    .marks {{ float:right; font-weight:bold; }}
+    .footer {{ text-align:center; margin-top:30px; font-weight:bold; }}
+    </style>
+    </head>
+    <body>
     """)
 
+    html_parts.append(f"<h1>{college_name}</h1>")
+    html_parts.append(f"<h2>{department}</h2>")
+
+    html_parts.append(f"""
+    <p>
+    <b>Internal Exam:</b> {exam_no}<br>
+    <b>Subject Code:</b> {course_code}<br>
+    <b>Subject Name:</b> {course_name}<br>
+    <b>Duration:</b> 90 Minutes<br>
+    <b>Maximum Marks:</b> 50
+    </p>
+    <hr>
+    """)
+
+    # ---------- SECTION BUILDER ----------
     def build_section(title, data):
         nonlocal q_number
 
@@ -113,8 +143,10 @@ def generate_pdf():
 
         for q_html, marks in questions:
             html_parts.append(f"""
-            <p><b>{q_number}.</b> {q_html}
-            <span style="float:right;"><b>({marks} Marks)</b></span></p>
+            <p>
+            <b>{q_number}.</b> {q_html}
+            <span class="marks">({marks} Marks)</span>
+            </p>
             """)
             q_number += 1
 
@@ -122,14 +154,12 @@ def generate_pdf():
     build_section("PART-B", partB)
     build_section("PART-C", partC)
 
-    html_parts.append("<div style='text-align:center;margin-top:20px;'><b>All the Best</b></div>")
+    html_parts.append("<div class='footer'>All the Best</div>")
     html_parts.append("</body></html>")
 
     final_html = "".join(html_parts)
 
-    from weasyprint import HTML
     pdf = HTML(string=final_html).write_pdf()
-
     return BytesIO(pdf)
     
 def build_section(title, data):

@@ -36,14 +36,14 @@ def section_builder(section_name):
         f"Total Questions in {section_name}",
         min_value=0,
         step=1,
-        key=section_name
+        key=section_name+"num"
     )
 
     required_answers = num_questions
 
     if answer_mode == "Choice Based" and num_questions > 0:
         required_answers = st.number_input(
-            f"How many questions must be answered in {section_name}?",
+            f"How many questions must be answered?",
             min_value=1,
             max_value=num_questions,
             step=1,
@@ -56,35 +56,48 @@ def section_builder(section_name):
     for i in range(int(num_questions)):
         st.subheader(f"Question {i+1}")
 
-        question_html = st_quill(
-            placeholder="Paste text, images, equations...",
-            key=section_name+str(i)
-        )
-
-        marks = st.number_input(
-            "Marks",
+        num_sub = st.number_input(
+            "Number of Subsections",
             min_value=1,
             step=1,
-            key=section_name+"m"+str(i)
+            key=section_name+"sub"+str(i)
         )
 
-        section_total += marks
-        section_data.append((question_html, marks))
+        subs = []
 
-    return answer_mode, num_questions, required_answers, section_data, section_total
-    
+        for j in range(int(num_sub)):
+            col1, col2 = st.columns([4,1])
+
+            text = col1.text_area(
+                f"({chr(97+j)}) Question Text",
+                key=section_name+str(i)+str(j)
+            )
+
+            mark = col2.number_input(
+                "Marks",
+                min_value=1,
+                step=1,
+                key=section_name+"mark"+str(i)+str(j)
+            )
+
+            section_total += mark   # ✅ CORRECT
+            subs.append((text, mark))
+
+        section_data.append(subs)
+
+    return answer_mode, num_questions, required_answers, section_data, section_total    
 partA = section_builder("PART-A")
 partB = section_builder("PART-B")
 partC = section_builder("PART-C")
 
-grand_total = partA[2] + partB[2] + partC[2]
+grand_total = partA[4] + partB[4] + partC[4]
 
-st.subheader(f"Total Marks: {grand_total} / 50")
+st.subheader(f"Total Marks Entered: {grand_total} / 50")
 
-if grand_total != TOTAL_MAX:
-    st.error("Total must equal 50")
+if grand_total != 50:
+    st.error("Total Marks must be exactly 50")
 else:
-    st.success("Total Valid")
+    st.success("Total Marks Valid (50)")
 
 # -----------------------
 # PDF GENERATOR

@@ -162,37 +162,6 @@ def generate_pdf():
     pdf = HTML(string=final_html).write_pdf()
     return BytesIO(pdf)
     
-def build_section(title, data):
-    nonlocal html_content, q_number
-
-    mode, total_q, required_q, questions, _ = data
-
-    html_content += f"<h3>{title}</h3>"
-
-    if mode == "Answer All Questions":
-        html_content += "<p><b>Answer ALL the questions:</b></p>"
-    else:
-        html_content += f"<p><b>Answer any {required_q} questions:</b></p>"
-
-    for q_html, marks in questions:
-        html_content += f"""
-        <p><b>{q_number}.</b> {q_html}
-        <span style="float:right;"><b>({marks} Marks)</b></span></p>
-        """
-        q_number += 1
-
-    build_section("PART-A", partA)
-    build_section("PART-B", partB)
-    build_section("PART-C", partC)
-
-    html_content += """
-    <div class="footer">All the Best</div>
-    </body></html>
-    """
-
-    pdf = HTML(string=html_content).write_pdf()
-    return BytesIO(pdf)
-
 # -----------------------
 # DOWNLOAD
 # -----------------------

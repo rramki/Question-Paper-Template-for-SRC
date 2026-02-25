@@ -1,19 +1,17 @@
 import streamlit as st
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A5
-from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
+from streamlit_quill import st_quill
+from weasyprint import HTML
 from io import BytesIO
-import os
+import base64
 
 st.set_page_config(layout="wide")
 st.title("Professional University Question Paper Generator (A5)")
 
-# ---------------------------
-# HEADER INPUTS
-# ---------------------------
+TOTAL_MAX = 50
+
+# -----------------------
+# HEADER
+# -----------------------
 college_name = st.text_input("College Name")
 department = st.text_input("Department Name")
 exam_no = st.selectbox("Internal Exam No", ["1", "2", "3"])
@@ -22,18 +20,16 @@ course_name = st.text_input("Subject Name")
 
 st.markdown("---")
 
-TOTAL_MAX = 50
-
-# ---------------------------
+# -----------------------
 # SECTION BUILDER
-# ---------------------------
+# -----------------------
 def section_builder(section_name):
     st.header(section_name)
 
-    choice_mode = st.radio(
-        f"{section_name} Answer Mode",
-        ["Answer All Questions", "Answer Any (Choice Based)"],
-        key=section_name+"choice"
+    answer_mode = st.radio(
+        f"{section_name} Mode",
+        ["Answer All Questions", "Answer Choice Based Questions"],
+        key=section_name+"mode"
     )
 
     num_questions = st.number_input(
@@ -49,177 +45,113 @@ def section_builder(section_name):
     for i in range(int(num_questions)):
         st.subheader(f"Question {i+1}")
 
-        num_sub = st.number_input(
-            "Number of Subsections",
-            min_value=1,
-            step=1,
-            key=section_name+"sub"+str(i)
+        question_html = st_quill(
+            placeholder="Paste text, images, or equations here...",
+            key=section_name+str(i)
         )
 
-        subs = []
-        for j in range(int(num_sub)):
-            col1, col2 = st.columns([4,1])
-            text = col1.text_area(f"({chr(97+j)}) Question Text",
-                                 key=section_name+str(i)+str(j))
-            mark = col2.number_input("Marks",
-                                     min_value=1,
-                                     step=1,
-                                     key=section_name+"m"+str(i)+str(j))
-            section_total += mark
-            subs.append((text, mark))
+        marks = st.number_input(
+            "Marks for this question",
+            min_value=1,
+            step=1,
+            key=section_name+"m"+str(i)
+        )
 
-        section_data.append(subs)
+        section_total += marks
+        section_data.append((question_html, marks))
 
-    return choice_mode, section_data, section_total
+    return answer_mode, section_data, section_total
 
-# ---------------------------
-# BUILD SECTIONS
-# ---------------------------
 partA = section_builder("PART-A")
 partB = section_builder("PART-B")
 partC = section_builder("PART-C")
 
 grand_total = partA[2] + partB[2] + partC[2]
 
-st.markdown("---")
-st.subheader(f"Total Marks Entered: {grand_total} / 50")
+st.subheader(f"Total Marks: {grand_total} / 50")
 
 if grand_total != TOTAL_MAX:
-    st.error("Total Marks must be exactly 50")
+    st.error("Total must equal 50")
 else:
-    st.success("Total Marks Valid (50)")
+    st.success("Total Valid")
 
-# ---------------------------
+# -----------------------
 # PDF GENERATOR
-# ---------------------------
+# -----------------------
 def generate_pdf():
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A5)
-    elements = []
-    styles = getSampleStyleSheet()
 
-    normal = ParagraphStyle(
-        'normal',
-        parent=styles['Normal'],
-        fontName='Times-Roman',
-        fontSize=12
-    )
+    html_content = f"""
+    <html>
+    <head>
+    <style>
+    @page {{ size: A5; margin: 20mm; }}
+    body {{ font-family: 'Times New Roman'; font-size: 12pt; }}
+    h1 {{ font-size: 16pt; font-weight: bold; }}
+    h2 {{ font-size: 14pt; font-weight: bold; }}
+    .header {{ display: flex; justify-content: space-between; }}
+    .footer {{ text-align: center; margin-top: 30px; font-weight: bold; }}
+    </style>
 
-    bold = ParagraphStyle(
-        'bold',
-        parent=styles['Normal'],
-        fontName='Times-Bold',
-        fontSize=12
-    )
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    </head>
+    <body>
 
-    college_style = ParagraphStyle(
-        'college',
-        parent=styles['Normal'],
-        fontName='Times-Bold',
-        fontSize=16
-    )
+    <h1>{college_name}</h1>
+    <h2>{department}</h2>
 
-    dept_style = ParagraphStyle(
-        'dept',
-        parent=styles['Normal'],
-        fontName='Times-Bold',
-        fontSize=14
-    )
-
-    # -----------------------
-    # HEADER TABLE
-    # -----------------------
-    logo_path = "logo.png"
-    if os.path.exists(logo_path):
-        logo = Image(logo_path, width=1.2*inch, height=1.2*inch)
-    else:
-        logo = Paragraph("LOGO", bold)
-
-    right_header = f"""
-    <b>Internal Exam:</b> {exam_no}<br/>
-    <b>Subject Code:</b> {course_code}<br/>
-    <b>Subject Name:</b> {course_name}<br/>
-    <b>Duration:</b> 90 Minutes<br/>
-    <b>Maximum Marks:</b> 50
+    <div class="header">
+        <div>
+            <b>Internal Exam:</b> {exam_no}<br>
+            <b>Subject Code:</b> {course_code}<br>
+            <b>Subject Name:</b> {course_name}
+        </div>
+        <div>
+            <b>Duration:</b> 90 Minutes<br>
+            <b>Maximum Marks:</b> 50
+        </div>
+    </div>
+    <hr>
     """
 
-    header_table = Table(
-        [[logo, Paragraph(right_header, normal)]],
-        colWidths=[2.5*inch, 2.5*inch]
-    )
-
-    header_table.setStyle(TableStyle([
-        ('VALIGN',(0,0),(-1,-1),'TOP'),
-    ]))
-
-    elements.append(Paragraph(college_name, college_style))
-    elements.append(Paragraph(department, dept_style))
-    elements.append(Spacer(1, 0.2*inch))
-    elements.append(header_table)
-    elements.append(Spacer(1, 0.3*inch))
-
-    # -----------------------
-    # WRITE SECTIONS
-    # -----------------------
     q_number = 1
 
-    def write_section(title, data):
-        nonlocal q_number
+    def build_section(title, data):
+        nonlocal html_content, q_number
         mode, questions, _ = data
 
-        elements.append(Paragraph(f"<b>{title}</b>", bold))
-        elements.append(Spacer(1, 0.2*inch))
+        html_content += f"<h3>{title}</h3>"
 
-        if mode == "Answer All Questions":
-            elements.append(Paragraph("Answer all the questions.", normal))
+        if "All" in mode:
+            html_content += "<p><b>Answer all questions.</b></p>"
         else:
-            elements.append(Paragraph("Answer the questions based on choice.", normal))
+            html_content += "<p><b>Answer choice based questions.</b></p>"
 
-        elements.append(Spacer(1, 0.2*inch))
-
-        for subs in questions:
-            elements.append(Paragraph(f"{q_number}.", normal))
-            elements.append(Spacer(1, 0.1*inch))
-
-            for sub in subs:
-                text, mark = sub
-                elements.append(
-                    Paragraph(f"({chr(97+subs.index(sub))}) {text} ({mark} Marks)", normal)
-                )
-                elements.append(Spacer(1, 0.1*inch))
-
-            elements.append(Spacer(1, 0.2*inch))
+        for q_html, marks in questions:
+            html_content += f"""
+            <p><b>{q_number}.</b> {q_html}
+            <span style="float:right;"><b>({marks} Marks)</b></span></p>
+            """
             q_number += 1
 
-    write_section("PART-A", partA)
-    write_section("PART-B", partB)
-    write_section("PART-C", partC)
+    build_section("PART-A", partA)
+    build_section("PART-B", partB)
+    build_section("PART-C", partC)
 
-    elements.append(Spacer(1, 0.5*inch))
-    elements.append(Paragraph("<b>All the Best</b>", bold))
+    html_content += """
+    <div class="footer">All the Best</div>
+    </body></html>
+    """
 
-    # Page Number
-    def add_page_number(canvas, doc):
-        canvas.setFont("Times-Roman", 12)
-        canvas.drawRightString(A5[0]-20, 20, f"Page {doc.page}")
+    pdf = HTML(string=html_content).write_pdf()
+    return BytesIO(pdf)
 
-    doc.build(elements, onFirstPage=add_page_number, onLaterPages=add_page_number)
-
-    buffer.seek(0)
-    return buffer
-
-# ---------------------------
-# DOWNLOAD BUTTON
-# ---------------------------
-if st.button("Generate Professional Question Paper"):
+# -----------------------
+# DOWNLOAD
+# -----------------------
+if st.button("Generate Professional PDF"):
     if grand_total == 50:
         pdf = generate_pdf()
         filename = f"{course_code}_{course_name}.pdf".replace(" ", "_")
-        st.download_button(
-            "Download PDF",
-            pdf,
-            file_name=filename,
-            mime="application/pdf"
-        )
+        st.download_button("Download PDF", pdf, filename, "application/pdf")
     else:
-        st.error("Cannot generate PDF. Total marks must be 50.")
+        st.error("Total must equal 50")

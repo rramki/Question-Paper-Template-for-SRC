@@ -91,26 +91,46 @@ else:
 # -----------------------
 def generate_pdf():
 
-    html_content = ""
     q_number = 1
+    html_parts = []
+
+    html_parts.append(f"""
+    <html>
+    <body style="font-family:Times New Roman; font-size:12pt;">
+    """)
 
     def build_section(title, data):
-        nonlocal html_content, q_number
+        nonlocal q_number
 
-        html_content += f"<h3>{title}</h3>"
+        mode, total_q, required_q, questions, _ = data
 
-        for q_html, marks in data:
-            html_content += f"""
+        html_parts.append(f"<h3>{title}</h3>")
+
+        if mode == "Answer All Questions":
+            html_parts.append("<p><b>Answer ALL the questions:</b></p>")
+        else:
+            html_parts.append(f"<p><b>Answer any {required_q} questions:</b></p>")
+
+        for q_html, marks in questions:
+            html_parts.append(f"""
             <p><b>{q_number}.</b> {q_html}
             <span style="float:right;"><b>({marks} Marks)</b></span></p>
-            """
+            """)
             q_number += 1
 
     build_section("PART-A", partA)
     build_section("PART-B", partB)
     build_section("PART-C", partC)
 
-    return html_content
+    html_parts.append("<div style='text-align:center;margin-top:20px;'><b>All the Best</b></div>")
+    html_parts.append("</body></html>")
+
+    final_html = "".join(html_parts)
+
+    from weasyprint import HTML
+    pdf = HTML(string=final_html).write_pdf()
+
+    return BytesIO(pdf)
 
 def build_section(title, data):
     nonlocal html_content, q_number

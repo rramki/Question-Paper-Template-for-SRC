@@ -28,16 +28,27 @@ def section_builder(section_name):
 
     answer_mode = st.radio(
         f"{section_name} Mode",
-        ["Answer All Questions", "Answer Choice Based Questions"],
+        ["Answer All Questions", "Choice Based"],
         key=section_name+"mode"
     )
 
     num_questions = st.number_input(
-        f"Number of Questions in {section_name}",
+        f"Total Questions in {section_name}",
         min_value=0,
         step=1,
         key=section_name
     )
+
+    required_answers = num_questions
+
+    if answer_mode == "Choice Based" and num_questions > 0:
+        required_answers = st.number_input(
+            f"How many questions must be answered in {section_name}?",
+            min_value=1,
+            max_value=num_questions,
+            step=1,
+            key=section_name+"required"
+        )
 
     section_data = []
     section_total = 0
@@ -46,12 +57,12 @@ def section_builder(section_name):
         st.subheader(f"Question {i+1}")
 
         question_html = st_quill(
-            placeholder="Paste text, images, or equations here...",
+            placeholder="Paste text, images, equations...",
             key=section_name+str(i)
         )
 
         marks = st.number_input(
-            "Marks for this question",
+            "Marks",
             min_value=1,
             step=1,
             key=section_name+"m"+str(i)
@@ -60,20 +71,7 @@ def section_builder(section_name):
         section_total += marks
         section_data.append((question_html, marks))
 
-    return answer_mode, section_data, section_total
-
-partA = section_builder("PART-A")
-partB = section_builder("PART-B")
-partC = section_builder("PART-C")
-
-grand_total = partA[2] + partB[2] + partC[2]
-
-st.subheader(f"Total Marks: {grand_total} / 50")
-
-if grand_total != TOTAL_MAX:
-    st.error("Total must equal 50")
-else:
-    st.success("Total Valid")
+    return answer_mode, num_questions, required_answers, section_data, section_total
 
 # -----------------------
 # PDF GENERATOR

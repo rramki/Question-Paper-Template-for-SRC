@@ -72,7 +72,7 @@ def section_builder(section_name):
         section_data.append((question_html, marks))
 
     return answer_mode, num_questions, required_answers, section_data, section_total
-
+    
 partA = section_builder("PART-A")
 partB = section_builder("PART-B")
 partC = section_builder("PART-C")

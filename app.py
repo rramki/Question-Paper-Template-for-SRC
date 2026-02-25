@@ -9,7 +9,7 @@ from io import BytesIO
 import os
 
 st.set_page_config(layout="wide")
-st.title("Professional University Question Paper Generator (A5)")
+st.title("University Question Paper Template (A5)")
 
 # ---------------------------
 # HEADER INPUTS

@@ -126,7 +126,7 @@ def generate_pdf():
 
     q_number = 1
 
-    def build_section(title, data):
+def build_section(title, data):
     nonlocal html_content, q_number
 
     mode, total_q, required_q, questions, _ = data
